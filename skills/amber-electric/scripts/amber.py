@@ -25,7 +25,12 @@ NEM_TZ = timezone(timedelta(hours=10))
 # ============ Token ============
 class TokenMissingError(Exception):
     """Token 未配置或已失效，提示用户输入。"""
-    pass
+    USER_MSG = (
+        "为了完成您的要求，我需要您提供 Amber Bearer Token，"
+        "谢谢您的配合。\n\n"
+        "您可以前往 https://www.amber.com.au/developers 获取 Token，"
+        "然后告诉我您的 Token（格式：psk_xxx），技能会自动保存。"
+    )
 
 def get_token():
     token = os.environ.get("AMBER_TOKEN")
@@ -80,7 +85,7 @@ def api_get(path, params=None):
                 "❌ Token 已失效！\n"
                 "请提供新的 Amber Bearer Token，技能会自动更新保存。"
             )
-        raise TokenMissingError(f"❌ HTTP错误 {e.code}: {e.read().decode()[:200]}")
+        raise TokenMissingError(TokenMissingError.USER_MSG)
     except Exception as e:
         raise TokenMissingError(f"❌ 请求失败: {e}")
 
@@ -587,8 +592,7 @@ def cmd_login(token=None):
                 return
             else:
                 print(f"❌ 当前 Token 已失效: {msg}")
-        print("请提供新的 Amber Bearer Token（格式：psk_xxx）")
-        return
+        print(TokenMissingError.USER_MSG)
 
     print(f"正在测试 Token...")
     ok, msg = test_token(token)
@@ -657,13 +661,8 @@ def main():
             cmd_usage(site_id, "昨天", None)
         else:
             parser.print_help()
-    except TokenMissingError as e:
-        print(str(e))
-        print()
-        print("="*60)
-        print("请运行以下命令设置 Token：")
-        print("  amber.py login <你的Token>")
-        print("="*60)
+    except TokenMissingError:
+        print(TokenMissingError.USER_MSG)
 
 if __name__ == "__main__":
     main()
