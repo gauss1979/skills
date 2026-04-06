@@ -1,0 +1,7 @@
+{
+  "name": "amber-electric",
+  "version": "1.0.0",
+  "description": "Amber Electric 澳大利亚能源零售商 API — 实时电价、电价预测、用量账单查询",
+  "author": "Gauss",
+  "tags": ["energy", "electricity", "australia", "amber", "api", "pricing"]
+}
