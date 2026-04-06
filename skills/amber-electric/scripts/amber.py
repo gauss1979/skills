@@ -238,6 +238,50 @@ def cmd_price(site_id):
         sign = "+" if avg > 0 else ""
         print(f"  当前售电均价: {sign}{avg:.2f} c/kWh = AU${avg/100:.4f}/kWh")
 
+# ============ 电价预测图表生成 ============
+
+def _gen_forecast_chart(time_prices, hours):
+    """生成电价预测折线图，返回图片路径。"""
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
+
+    sorted_keys = sorted(time_prices.keys())
+    gen = [time_prices[k].get("general", 0) for k in sorted_keys]
+    feed = [time_prices[k].get("feedIn", 0) for k in sorted_keys]
+
+    chart_file = f"{OUTPUT_DIR}/amber_forecast_{hours}h.png"
+
+    plt.figure(figsize=(12, 5.5))
+    plt.plot(sorted_keys, gen, 'o-', color='#FF6B6B', linewidth=2.5, markersize=7,
+             label='Buy Price (Gen)')
+    plt.plot(sorted_keys, feed, 's-', color='#4ECDC4', linewidth=2.5, markersize=7,
+             label='Sell Price (Feed-in)')
+
+    # 标注最高最低购电点
+    for i, (g, f) in enumerate(zip(gen, feed)):
+        if g == max(gen):
+            plt.annotate(f'{g:.1f}', (sorted_keys[i], g),
+                         textcoords='offset points', xytext=(0, 8),
+                         ha='center', fontsize=8, color='#FF6B6B', fontweight='bold')
+        if g == min(gen):
+            plt.annotate(f'{g:.1f}', (sorted_keys[i], g),
+                         textcoords='offset points', xytext=(0, -12),
+                         ha='center', fontsize=8, color='#FF6B6B', fontweight='bold')
+
+    plt.axhline(y=0, color='gray', linewidth=1, linestyle='--')
+    plt.xlabel('Time (NEM)', fontsize=11)
+    plt.ylabel('Price (c/kWh)', fontsize=11)
+    plt.title(f'Amber — Next {hours} Hours Price Forecast (Buy vs Sell)',
+              fontsize=13, fontweight='bold', pad=12)
+    plt.legend(fontsize=10)
+    plt.grid(alpha=0.3, linestyle='--')
+    plt.xticks(rotation=45, ha='right')
+    plt.tight_layout()
+    plt.savefig(chart_file, dpi=150, bbox_inches='tight')
+    plt.close()
+    print(f"\n  📊 图表已生成: {chart_file}")
+    return chart_file
+
+
 # ============ 电价预测命令 ============
 def cmd_forecast(site_id, hours=4):
     n = hours * 2  # 30min intervals
@@ -282,6 +326,11 @@ def cmd_forecast(site_id, hours=4):
         elif gen < 10: gen_sig = "✅低价"
         feed_sig = "✅收益" if feed > 0 else "⚠️倒贴"
         print(f"  {key:<18} {gen:>14.2f} {feed:>14.2f} {gen_sig:<10} {feed_sig}")
+
+    # 生成图表
+    chart_path = _gen_forecast_chart(time_prices, hours)
+    print(f"\n{'='*65}")
+    print(f"  🖼️ CHART_PATH={chart_path}")
 
 # ============ 用量图表生成 ============
 OUTPUT_DIR = "/root/.openclaw/workspace/memory/chart/output"
