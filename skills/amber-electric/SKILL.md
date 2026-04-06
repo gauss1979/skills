@@ -148,8 +148,10 @@ GET /sites/{amber_site_id}/usage
 ```
 
 **回复规范**：
-1. 先在消息中回复表格数据摘要（数字要点）
-2. 再发送图表图片（使用 `message` 工具，`target` 为接收者的飞书 ID）
+1. 执行脚本获取 `🖼️ CHART_PATH=/path/to/chart.png`
+2. 使用 `message` 工具发送图片 + 文字摘要：
+   - **Feishu**：channel=feishu，caption=文字摘要，media=CHART_PATH，target=当前会话用户 ID
+   - **webchat**：暂不支持内嵌图片，建议用户切换至飞书以获得完整体验
 
 **Token 失效时回复规范**：
 - 打印 Token 失效提示
