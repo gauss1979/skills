@@ -18,6 +18,28 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
 TOKEN_FILE = os.path.expanduser("~/.amber/token")
+CONFIG_FILE = os.path.expanduser("~/.amber/config.json")
+
+
+def load_config():
+    """加载站点配置，无配置时返回空字典。"""
+    if os.path.exists(CONFIG_FILE):
+        with open(CONFIG_FILE) as f:
+            return json.load(f)
+    return {}
+
+
+def save_config(cfg):
+    """保存站点配置到 ~/.amber/config.json。"""
+    os.makedirs(os.path.dirname(CONFIG_FILE), exist_ok=True)
+    with open(CONFIG_FILE, 'w') as f:
+        json.dump(cfg, f, indent=2, ensure_ascii=False)
+
+
+
+def get_site_id_from_config():
+    """从配置文件中读取站点ID，无配置时返回 None。"""
+    return load_config().get("site_id")
 BASE_URL = "https://api.amber.com.au/v1"
 # NEM 时区 (UTC+10, AEST, 无夏令时)
 NEM_TZ = timezone(timedelta(hours=10))
@@ -628,18 +650,30 @@ def main():
     lp.add_argument("token", nargs="?", help="Amber Bearer Token（可选）")
 
     sub.add_parser("list", help="查看所有站点")
-    sub.add_parser("price", help="当前电价").add_argument("site_id", help="Amber站点ID")
+    sub.add_parser("price", help="当前电价").add_argument("site_id", nargs="?", help="Amber站点ID（可选）")
 
     fp = sub.add_parser("forecast", help="电价预测")
-    fp.add_argument("site_id", help="Amber站点ID")
+    fp.add_argument("site_id", nargs="?", help="Amber站点ID（可选）")
     fp.add_argument("hours", nargs="?", type=int, default=4, help="预测小时数")
 
     up = sub.add_parser("usage", help="用量查询")
-    up.add_argument("site_id", help="Amber站点ID")
+    up.add_argument("site_id", nargs="?", help="Amber站点ID（可选）")
     up.add_argument("start", help="开始日期（支持自然语言：昨天/上周/近7天/YYYY-MM-DD）")
     up.add_argument("end", nargs="?", help="结束日期（可选）")
 
-    sub.add_parser("report", help="综合分析报告").add_argument("site_id", help="Amber站点ID")
+    sub.add_parser("report", help="综合分析报告").add_argument("site_id", nargs="?", help="Amber站点ID（可选）")
+
+    def resolve_site_id(site_id_arg):
+        """从参数或配置文件中获取 site_id。"""
+        if site_id_arg:
+            return site_id_arg
+        saved = get_site_id_from_config()
+        if saved:
+            return saved
+        raise TokenMissingError(
+            "未指定站点ID，也未找到已保存的站点配置。\n\n"
+            + TokenMissingError.USER_MSG
+        )
 
     args = parser.parse_args()
 
@@ -649,16 +683,16 @@ def main():
         elif args.cmd == "list":
             cmd_list()
         elif args.cmd == "price":
-            cmd_price(args.site_id)
+            cmd_price(resolve_site_id(args.site_id))
         elif args.cmd == "forecast":
-            cmd_forecast(args.site_id, args.hours)
+            cmd_forecast(resolve_site_id(args.site_id), args.hours)
         elif args.cmd == "usage":
-            cmd_usage(args.site_id, args.start, args.end)
+            cmd_usage(resolve_site_id(args.site_id), args.start, args.end)
         elif args.cmd == "report":
-            site_id = args.site_id
-            cmd_price(site_id)
+            sid = resolve_site_id(args.site_id)
+            cmd_price(sid)
             print()
-            cmd_usage(site_id, "昨天", None)
+            cmd_usage(sid, "昨天", None)
         else:
             parser.print_help()
     except TokenMissingError:
