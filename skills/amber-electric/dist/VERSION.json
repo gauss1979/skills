@@ -1,0 +1,20 @@
+{
+  "name": "amber-electric",
+  "version": "1.0.0",
+  "description": "Amber Electric 澳大利亚能源零售商 API — 实时电价、电价预测、用量账单查询",
+  "author": "Gauss",
+  "tags": ["energy", "electricity", "australia", "amber", "api", "pricing"],
+  "checksum": "sha256:7e621a14d4416a0cfe8ae81b46ad66a760f1254695d72514f61cd19526a5102f",
+  "files": [
+    "SKILL.md",
+    "_meta.json",
+    "scripts/amber.py",
+    "install.sh"
+  ],
+  "requires": {
+    "python": ">=3.6",
+    "matplotlib": "(optional) for chart generation"
+  },
+  "install": "bash <(curl -fsSL <URL>/install.sh)",
+  "homepage": "https://www.amber.com.au/developers"
+}
