@@ -60,6 +60,8 @@ GET /sites
 ```
 返回用户所有站点信息：amber_site_id、NMI、channels（E1=购电通道、B1=售电通道）、供电公司、状态。
 
+**提示**：首次使用请先运行 `amber.py login <Token>` 配置认证信息。
+
 ### 2. 电价预测
 
 ```
@@ -157,25 +159,25 @@ GET /sites/{amber_site_id}/usage
 
 ```bash
 # 设置/测试 Token
-amber.py login psk_0c887f966b95940c9bcab0549c229833
+amber.py login <你的Token>
 
 # 查看当前 Token 状态
 amber.py login
 
-# 查看站点
+# 查看站点（自动使用已保存 Token）
 amber.py list
 
 # 当前电价
-amber.py price 01KJBKR1WJP4BZRZCES1YWJAPA
+amber.py price <Amber站点ID>
 
 # 未来4小时电价预测（自动带折线图）
-amber.py forecast 01KJBKR1WJP4BZRZCES1YWJAPA 4
+amber.py forecast <Amber站点ID> 4
 
 # 昨天收益（自动带双柱状图）
-amber.py usage 01KJBKR1WJP4BZRZCES1YWJAPA 昨天
+amber.py usage <Amber站点ID> 昨天
 
 # 上周收益
-amber.py usage 01KJBKR1WJP4BZRZCES1YWJAPA 上周
+amber.py usage <Amber站点ID> 上周
 ```
 
 ## 注意事项
