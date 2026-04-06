@@ -1,6 +1,6 @@
 ---
 name: amber-electric
-description: Amber Electric 澳大利亚能源零售商 API — 查询实时电价、电价预测、账单用量。支持 NEM（National Electricity Market）各州电价查询，结合 mx-sky 站点数据可计算最优充放电策略。触发场景：查电价、查电价预测、查账单、查用电量、分析售电收益。
+description: Amber Electric 澳大利亚能源零售商 API — 查询实时电价、电价预测、账单用量。支持 NEM（National Electricity Market）各州电价查询，结合 mx-sky 站点数据可计算最优充放电策略。触发场景：查电价、查电价预测、查账单、查用电量，分析售电收益。
 ---
 
 # Amber Electric 技能
@@ -62,53 +62,87 @@ GET /sites/{amber_site_id}/usage
 **Query 参数**：
 | 参数 | 说明 |
 |------|------|
-| `startDate` | 开始日期（ISO 8601: `2026-03-06T00:00:01Z`） |
+| `startDate` | 开始日期（**YYYY-MM-DD** 格式，不是 ISO 8601） |
 | `endDate` | 结束日期（不超过7天） |
 
-**返回字段**：
+**返回字段（Python预处理后）**：
 | 字段 | 说明 |
 |------|------|
-| `type` | ActualInterval=实际 / ForecastInterval=预测 |
-| `duration` | 区间时长（分钟） |
+| `kwh` | 直接是 kWh 数（不用计算） |
+| `cost` | 直接是费用（**cents**，不用除100） |
 | `perKwh` | 电价（cents/kWh） |
 | `channelType` | general=购电 / feedIn=售电 |
-| `spikeStatus` | none/spike（电网峰值） |
+| `feed_cost < 0` | 售电倒贴（被收费） |
+| `feed_cost > 0` | 售电赚钱 |
 
 ## 数据单位说明
 
 - 电价 `perKwh`：**cents/kWh**（澳分/度）
+- `cost` = perKwh × kwh（**直接是 cents**，已验证）
 - 时间：NEM 时间（UTC+10:00，AEST，无夏令时）
-- 时区：AEST / AEDT（自动处理）
 
 ## 常用命令
 
 | 场景 | 命令 |
 |------|------|
-| 查看所有站点 | `python3 scripts/amber.py list` |
-| 查看当前电价 | `python3 scripts/amber.py price <site_id>` |
-| 查看未来电价预测 | `python3 scripts/amber.py forecast <site_id> [hours]` |
-| 查看用量账单 | `python3 scripts/amber.py usage <site_id> <start_date> <end_date>` |
-| 电价分析报告 | `python3 scripts/amber.py report <site_id>` |
+| 查看所有站点 | `amber.py list` |
+| 查看当前电价 | `amber.py price <site_id>` |
+| 查看未来电价预测 | `amber.py forecast <site_id> [hours]` |
+| 查看用量账单 | `amber.py usage <site_id> <时间>` |
+| 综合分析报告 | `amber.py report <site_id>` |
+
+## 日期解析（自然语言）
+
+`usage` 命令的 `<时间>` 参数支持自然语言：
+
+| 用户输入 | 日期区间 |
+|---------|---------|
+| `昨天` / `yesterday` | 前一天 |
+| `前天` | 前两天 |
+| `近3天` / `近7天` / `近30天` | 自动计算 |
+| `上周` | 上一个完整自然周（周一~周日） |
+| `上上周` | 上上周（自然周） |
+| `2026-04-01` | 单日 |
+| `2026-04-01 2026-04-06` | 日期区间 |
+| `2026年3月` | **暂不支持**（直接提示） |
+
+## 输出格式（图表自动生成）
+
+`usage` 和 `forecast` 命令执行后会**自动生成图表**：
+
+```
+[表格数据...]
+📊 图表已生成: /path/to/chart.png
+=================================================================
+  🖼️ CHART_PATH=/path/to/chart.png
+```
+
+**回复规范**：
+1. 先在消息中回复表格数据摘要（数字要点）
+2. 再发送图表图片（使用 `message` 工具，`target` 为 `ou_a97d3a4e0c3c02ad864346f725986e2f`）
 
 ## 示例查询
 
 ```bash
 # 查看站点
-curl -s "https://api.amber.com.au/v1/sites" \
-  -H "Authorization: Bearer $(cat ~/.amber/token)"
+amber.py list
 
-# 当前电价（购电+售电）
-curl -s "https://api.amber.com.au/v1/sites/{id}/prices/current?previous=6&next=12&resolution=30" \
-  -H "Authorization: Bearer $(cat ~/.amber/token)"
+# 当前电价
+amber.py price 01KJBKR1WJP4BZRZCES1YWJAPA
 
-# 近7天用量
-curl -s "https://api.amber.com.au/v1/sites/{id}/usage?startDate=2026-03-30T00:00:01Z&endDate=2026-04-06T00:00:01Z" \
-  -H "Authorization: Bearer $(cat ~/.amber/token)"
+# 未来4小时电价预测（自动带折线图）
+amber.py forecast 01KJBKR1WJP4BZRZCES1YWJAPA 4
+
+# 昨天收益（自动带双柱状图）
+amber.py usage 01KJBKR1WJP4BZRZCES1YWJAPA 昨天
+
+# 上周收益
+amber.py usage 01KJBKR1WJP4BZRZCES1YWJAPA 上周
 ```
 
 ## 注意事项
 
 - Token 向 Amber API 获取，官网：https://www.amber.com.au/developers
-- 电价为 cents/kWh，不是 AUD/kWh（需 ÷100 转 AUD）
-- 售电（feedIn）和购电（general）价格分开
+- `/usage` 接口日期格式为 **YYYY-MM-DD**（不是 ISO 8601）
+- 售电（feedIn）perKwh 在某些时段为**负数**，此时售电反而被收费
 - 预测价格仅供参考，实际以 ActualInterval 为准
