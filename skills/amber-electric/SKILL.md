@@ -149,7 +149,7 @@ GET /sites/{amber_site_id}/usage
 
 **回复规范**：
 1. 先在消息中回复表格数据摘要（数字要点）
-2. 再发送图表图片（使用 `message` 工具，`target` 为 `ou_a97d3a4e0c3c02ad864346f725986e2f`）
+2. 再发送图表图片（使用 `message` 工具，`target` 为接收者的飞书 ID）
 
 **Token 失效时回复规范**：
 - 打印 Token 失效提示
