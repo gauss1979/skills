@@ -623,6 +623,15 @@ def cmd_login(token=None):
     if ok:
         save_token(token)
         print(f"✅ Token 验证成功（站点数: {msg}），已保存到 ~/.amber/token")
+        # 自动获取并保存站点 ID
+        sites = api_get("/sites")
+        if sites and len(sites) == 1:
+            site_id = sites[0].get("id")
+            if site_id:
+                save_config({"site_id": site_id})
+                print(f"📌 已自动保存唯一站点 ID: {site_id}")
+        elif sites and len(sites) > 1:
+            print(f"📌 检测到 {len(sites)} 个站点，请在使用时指定，或运行 amber.py list 查看站点 ID。")
         print(f"\n🎉 配置完成！后续查询无需再输入 Token。")
     else:
         print(f"❌ Token 无效: {msg}")
@@ -655,8 +664,7 @@ def main():
     sub.add_parser("price", help="当前电价").add_argument("site_id", nargs="?", help="Amber站点ID（可选）")
 
     fp = sub.add_parser("forecast", help="电价预测")
-    fp.add_argument("site_id", nargs="?", help="Amber站点ID（可选）")
-    fp.add_argument("hours", nargs="?", type=int, default=4, help="预测小时数")
+    fp.add_argument("hours", nargs="?", type=int, default=4, help="预测小时数（默认4）")
 
     up = sub.add_parser("usage", help="用量查询")
     up.add_argument("site_id", nargs="?", help="Amber站点ID（可选）")
@@ -687,7 +695,7 @@ def main():
         elif args.cmd == "price":
             cmd_price(resolve_site_id(args.site_id))
         elif args.cmd == "forecast":
-            cmd_forecast(resolve_site_id(args.site_id), args.hours)
+            cmd_forecast(resolve_site_id(None), args.hours)
         elif args.cmd == "usage":
             cmd_usage(resolve_site_id(args.site_id), args.start, args.end)
         elif args.cmd == "report":
