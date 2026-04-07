@@ -17,8 +17,12 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
-TOKEN_FILE = os.path.expanduser("~/.amber/token")
-CONFIG_FILE = os.path.expanduser("~/.amber/config.json")
+# AMBER_DIR 由调用方通过 exec env 参数注入
+_amber_base = os.environ.get("AMBER_DIR")
+if not _amber_base:
+    raise RuntimeError("AMBER_DIR environment variable is not set. 调用 agent 必须通过 env 参数传入 AMBER_DIR=<agent_workspace>/.amber")
+TOKEN_FILE = os.path.join(_amber_base, "token")
+CONFIG_FILE = os.path.join(_amber_base, "config.json")
 
 
 def load_config():
@@ -30,7 +34,7 @@ def load_config():
 
 
 def save_config(cfg):
-    """保存站点配置到 ~/.amber/config.json。"""
+    """保存站点配置到 AMBER_DIR/config.json。"""
     os.makedirs(os.path.dirname(CONFIG_FILE), exist_ok=True)
     with open(CONFIG_FILE, 'w') as f:
         json.dump(cfg, f, indent=2, ensure_ascii=False)
@@ -50,7 +54,7 @@ class TokenMissingError(Exception):
     USER_MSG = (
         "❌ 认证信息未配置或无效，请提供 Amber Token。\n\n"
         "请前往 https://www.amber.com.au/developers 登录获取 Token，"
-        "然后告诉我（格式：psk_xxx），技能会自动保存到 ~/.amber/token，"
+        "然后告诉我（格式：psk_xxx），技能会自动保存到 AMBER_DIR/token，"
         "后续无需再输入。"
     )
 
@@ -64,7 +68,7 @@ def get_token():
     return None
 
 def save_token(token):
-    """保存 Token 到 ~/.amber/token。"""
+    """保存 Token 到 AMBER_DIR/token。"""
     os.makedirs(os.path.dirname(TOKEN_FILE), exist_ok=True)
     with open(TOKEN_FILE, 'w') as f:
         f.write(token.strip())
@@ -91,7 +95,7 @@ def api_get(path, params=None):
         raise TokenMissingError(
             "❌ 未配置 Amber Token！\n\n"
             "请提供你的 Amber Bearer Token（格式：psk_xxx），"
-            "技能会自动保存到 ~/.amber/token，后续无需再输入。\n\n"
+            "技能会自动保存到 AMBER_DIR/token，后续无需再输入。\n\n"
             "获取地址：https://www.amber.com.au/developers"
         )
     url = f"{BASE_URL}{path}"
@@ -622,7 +626,7 @@ def cmd_login(token=None):
     ok, msg = test_token(token)
     if ok:
         save_token(token)
-        print(f"✅ Token 验证成功（站点数: {msg}），已保存到 ~/.amber/token")
+        print(f"✅ Token 验证成功（站点数: {msg}），已保存到 {TOKEN_FILE}")
         # 自动获取并保存站点 ID
         sites = api_get("/sites")
         if sites and len(sites) == 1:

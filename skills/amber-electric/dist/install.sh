@@ -1,18 +1,18 @@
 #!/bin/bash
 #===============================================
-# amber-electric 技能安装脚本 v1.0.0
+# amber-electric 技能安装脚本 v1.0.2
 # 适用系统: Linux / macOS / Windows (WSL)
 # 安装方式:
-#   bash <(curl -fsSL https://raw.githubusercontent.com/gauss1979/skills/v1.0.0/skills/amber-electric/dist/install.sh)
+#   bash <(curl -fsSL https://raw.githubusercontent.com/gauss1979/skills/v1.0.2/skills/amber-electric/dist/install.sh)
 #===============================================
 set -e
 
-VERSION="v1.0.0"
+VERSION="v1.0.2"
 SKILL_NAME="amber-electric"
 SKILL_DIR="$HOME/.openclaw/workspace/skills/${SKILL_NAME}"
 PYTHON_CMD="${PYTHON_CMD:-python3}"
 
-# GitHub 分发地址（指向 v1.0.0 标签，Immutable）
+# GitHub 分发地址（指向 v1.0.2 标签，Immutable）
 BASE_URL="https://github.com/gauss1979/skills/archive/refs/tags/${VERSION}.tar.gz"
 DIST_LABEL="skills-${VERSION}"
 
