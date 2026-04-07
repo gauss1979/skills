@@ -106,7 +106,7 @@ GET /sites/{amber_site_id}/usage
 | 配置/测试 Token | `amber.py login [token]` |
 | 查看所有站点 | `amber.py list` |
 | 查看当前电价 | `amber.py price [site_id]` |
-| 查看未来电价预测 | `amber.py forecast [site_id] [小时]` |
+| 查看未来电价预测 | `amber.py forecast [小时]` |
 | 查看用量账单 | `amber.py usage [site_id] <时间>` |
 | 综合分析报告 | `amber.py report [site_id]` |
 
@@ -153,6 +153,7 @@ amber.py login psk_xxx
 # 后续使用（无需传站点ID）
 amber.py price
 amber.py forecast 6
+amber.py forecast 24      # 查未来24小时
 amber.py usage 昨天
 amber.py usage 上周
 amber.py report
