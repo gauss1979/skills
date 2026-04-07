@@ -229,7 +229,7 @@ def cmd_bess(site_id):
 
 
 def cmd_power_day(site_id, date_str=None):
-    """日功率图表数据"""
+    """日功率图表数据 — 输出顺序：图表 → 表格 → 总结"""
     if date_str:
         dt = datetime.strptime(date_str, "%Y-%m-%d")
     else:
@@ -247,23 +247,35 @@ def cmd_power_day(site_id, date_str=None):
     consumption = series_map.get("consumption", [])
     bess = series_map.get("bessTotalPower", [])
 
+    # ── ① 图表（第一条输出）──────────────────────────────
+    chart1 = _gen_chart(labels, grid, "电网功率(kW)", "line", f"power_day_{site_id}_{date_str or 'today'}")
+    chart2 = _gen_bar_chart(labels[:24], [round((c or 0), 2) for c in consumption[:24]] if consumption else [],
+                              "消耗功率(kW)", f"consumption_day_{site_id}")
+    print(f"\n📊 图表路径: {chart1} / {chart2}")
+
+    # ── ② 文字表格（第二条输出）──────────────────────────
     print(f"\n{'='*60}")
     print(f" 日功率 — [{site_id}]  {date_str or datetime.now().strftime('%Y-%m-%d')}")
     print(f"{'='*60}")
     print(f" 数据点数: {len(labels)}")
-    if grid and grid[0] is not None:
-        print(f" 电网功率范围: {min(g for g in grid if g):.2f} ~ {max(g for g in grid if g):.2f} kW")
-    if solar and solar[0] is not None:
-        print(f" 光伏功率范围: {min(s for s in solar if s):.2f} ~ {max(s for s in solar if s):.2f} kW")
+    valid_grid = [g for g in grid if g is not None and g != 0]
+    valid_solar = [s for s in solar if s is not None and s != 0]
+    if valid_grid:
+        print(f" 电网功率范围: {min(valid_grid):.2f} ~ {max(valid_grid):.2f} kW")
+    if valid_solar:
+        print(f" 光伏功率范围: {min(valid_solar):.2f} ~ {max(valid_solar):.2f} kW")
+    if bess and any(b for b in bess if b):
+        valid_bess = [b for b in bess if b]
+        print(f" 电池功率范围: {min(valid_bess):.2f} ~ {max(valid_bess):.2f} kW")
 
-    _gen_chart(labels, grid, "电网功率", "line", f"power_day_{site_id}_{date_str or 'today'}")
-    _gen_bar_chart(labels[:24], [round((c or 0), 2) for c in consumption[:24]] if consumption else [],
-                   "消耗功率(kW)", f"consumption_day_{site_id}")
-    print(f"\n📊 图表已生成！")
+    # ── ③ 总结（第三条输出）──────────────────────────────
+    net_import = sum(g for g in grid if g and g > 0) if grid else 0
+    net_export = abs(sum(g for g in grid if g and g < 0)) if grid else 0
+    print(f"\n电网净输入: {net_import:.2f} kW | 净输出: {net_export:.2f} kW")
 
 
 def cmd_earnings_week(site_id):
-    """周收益"""
+    """周收益 — 输出顺序：图表 → 表格 → 总结"""
     ts = int(datetime.now(timezone.utc).timestamp() * 1000)
     data = api_get(f"/app/sites/{site_id}/earnings/week", {"timestamp": ts})
     resp = data.get("data", {})
@@ -273,22 +285,45 @@ def cmd_earnings_week(site_id):
     labels = [datetime.fromtimestamp(m / 1000).strftime("%m-%d") for m in marks]
     earnings = [round(v or 0, 2) for v in values]
 
+    # ── ① 图表（第一条输出）──────────────────────────────
+    chart_path = _gen_chart(labels, earnings, "周收益(AU$)", "bar", f"earnings_week_{site_id}")
+    print(f"\n📊 图表路径: {chart_path}")
+
+    # ── ② 文字表格（第二条输出）──────────────────────────
     total = sum(earnings)
     print(f"\n{'='*60}")
-    print(f" 周收益 — [{site_id}]")
+    print(f" 周收益 — [{site_id}]  ({labels[0]} ~ {labels[-1]})")
     print(f"{'='*60}")
+    max_val = max(abs(e) for e in earnings) if earnings else 1
     for lb, ev in zip(labels, earnings):
-        bar = "█" * int(abs(ev) / max(earnings) * 30) if max(earnings) > 0 else ""
-        print(f"  {lb}  ${ev:>10.2f}  {bar}")
-    print(f"  {'-'*30}")
+        bar = "█" * int(abs(ev) / max_val * 25)
+        sign = "+" if ev >= 0 else "-"
+        print(f"  {lb}  {sign}${abs(ev):>9.2f}  {bar}")
+    print(f"  {'-'*32}")
     print(f"  合计  ${total:>10.2f}")
 
-    _gen_chart(labels, earnings, "周收益(AU$)", "bar", f"earnings_week_{site_id}")
-    print(f"\n📊 图表已生成！")
+    # ── ③ 总结信息（第三条输出）──────────────────────────
+    positive_days = [e for e in earnings if e > 0]
+    negative_days = [e for e in earnings if e < 0]
+    best_day = max(earnings) if earnings else 0
+    worst_day = min(earnings) if earnings else 0
+    best_label = labels[earnings.index(best_day)] if earnings and best_day in earnings else "-"
+    worst_label = labels[earnings.index(worst_day)] if earnings and worst_day in earnings else "-"
+
+    trend = "全周正收益" if not negative_days else f"{len(negative_days)}天负收益"
+    status = "✅" if total > 0 else "⚠️"
+
+    print(f"\n{trend}，周{'总收益' if total > 0 else '总亏损' if total < 0 else '持平'}")
+    print(f"最高: ${best_day:.2f}（{best_label}） | 最低: ${worst_day:.2f}（{worst_label}）")
+    print(f"合计: ${total:.2f} {status}")
+
+    if negative_days and total > 0:
+        avg_positive = sum(positive_days) / len(positive_days) if positive_days else 0
+        print(f"正收益日均: ${avg_positive:.2f}，负收益日均: ${sum(negative_days)/len(negative_days):.2f}")
 
 
 def cmd_earnings_year(site_id):
-    """年收益"""
+    """年收益 — 输出顺序：图表 → 表格 → 总结"""
     ts = int(datetime.now(timezone.utc).timestamp() * 1000)
     data = api_get(f"/app/sites/{site_id}/earnings/year", {"timestamp": ts})
     resp = data.get("data", {})
@@ -298,23 +333,44 @@ def cmd_earnings_year(site_id):
     labels = [datetime.fromtimestamp(m / 1000).strftime("%Y-%m") for m in marks]
     earnings = [round(v or 0, 2) for v in values]
 
+    # ── ① 图表（第一条输出）──────────────────────────────
+    chart_path = _gen_chart(labels, earnings, "月收益(AU$)", "bar", f"earnings_year_{site_id}")
+    print(f"\n📊 图表路径: {chart_path}")
+
+    # ── ② 文字表格（第二条输出）──────────────────────────
     total = sum(earnings)
     print(f"\n{'='*60}")
     print(f" 年收益 — [{site_id}]")
     print(f"{'='*60}")
-    for lb, ev in zip(labels, earnings):
-        if abs(ev) > 0.01:
-            bar = "█" * int(abs(ev) / max(earnings) * 30) if max(earnings) > 0 else ""
-            print(f"  {lb}  ${ev:>12.2f}  {bar}")
+    non_zero = [(lb, ev) for lb, ev in zip(labels, earnings) if abs(ev) > 0.01]
+    max_val = max(abs(ev) for _, ev in non_zero) if non_zero else 1
+    for lb, ev in non_zero:
+        bar = "█" * int(abs(ev) / max_val * 25)
+        sign = "+" if ev >= 0 else "-"
+        print(f"  {lb}  {sign}${abs(ev):>11.2f}  {bar}")
     print(f"  {'-'*35}")
     print(f"  合计  ${total:>12.2f}")
 
-    _gen_chart(labels, earnings, "月收益(AU$)", "bar", f"earnings_year_{site_id}")
-    print(f"\n📊 图表已生成！")
+    # ── ③ 总结信息（第三条输出）──────────────────────────
+    months_positive = [e for e in earnings if e > 0]
+    months_negative = [e for e in earnings if e < 0]
+    best_month_val = max(earnings) if earnings else 0
+    worst_month_val = min(earnings) if earnings else 0
+    best_label = labels[earnings.index(best_month_val)] if earnings and best_month_val in earnings else "-"
+    worst_label = labels[earnings.index(worst_month_val)] if earnings and worst_month_val in earnings else "-"
+
+    trend = f"{len(months_negative)}个月负收益" if months_negative else "全年正收益"
+    status = "✅" if total > 0 else "⚠️"
+
+    print(f"\n{trend}，年{'总收益' if total > 0 else '总亏损' if total < 0 else '持平'}")
+    print(f"最高月: ${best_month_val:.2f}（{best_label}） | 最低月: ${worst_month_val:.2f}（{worst_label}）")
+    print(f"合计: ${total:.2f} {status}")
+    if months_positive:
+        print(f"月均收益: ${total/len(months_positive):.2f}")
 
 
 def cmd_chart_month(site_id, year_month=None):
-    """月统计图表（使用 /charts/month，日聚合数据）"""
+    """月统计图表 — 输出顺序：图表 → 表格 → 总结"""
     if year_month:
         dt = datetime.strptime(year_month, "%Y-%m")
     else:
@@ -331,26 +387,36 @@ def cmd_chart_month(site_id, year_month=None):
     bess_chg = [round((v or 0) / 3_600_000, 2) for v in series_map.get("bessChg", [])]
     bess_dischg = [round((v or 0) / 3_600_000, 2) for v in series_map.get("bessDischg", [])]
 
-    print(f"\n{'='*60}")
-    print(f" 月统计 — [{site_id}]  {year_month or datetime.now().strftime('%Y-%m')}")
-    print(f"{'='*60}")
-    total_solar = sum(solar_chg)
-    total_bess_chg = sum(bess_chg)
-    total_bess_dischg = sum(bess_dischg)
-    print(f" 光伏充电量: {total_solar:.2f} kWh")
-    print(f" 电池充电量: {total_bess_chg:.2f} kWh  | 放电量: {total_bess_dischg:.2f} kWh")
-    print(f" 净收益: {(total_bess_dischg - total_bess_chg):.2f} kWh")
-
-    _gen_multi_bar(labels, {
+    # ── ① 图表（第一条输出）──────────────────────────────
+    chart_path = _gen_multi_bar(labels, {
         "光伏充电": solar_chg,
         "电池充电": bess_chg,
         "电池放电": bess_dischg,
     }, "月充放电统计(kWh)", f"monthly_{site_id}")
-    print(f"\n📊 图表已生成！")
+    print(f"\n📊 图表路径: {chart_path}")
+
+    # ── ② 文字表格（第二条输出）──────────────────────────
+    total_solar = sum(solar_chg)
+    total_bess_chg = sum(bess_chg)
+    total_bess_dischg = sum(bess_dischg)
+    net = total_bess_dischg - total_bess_chg
+    print(f"\n{'='*60}")
+    print(f" 月统计 — [{site_id}]  {year_month or datetime.now().strftime('%Y-%m')}")
+    print(f"{'='*60}")
+    print(f" 光伏充电量: {total_solar:.2f} kWh")
+    print(f" 电池充电量: {total_bess_chg:.2f} kWh  | 放电量: {total_bess_dischg:.2f} kWh")
+    print(f" 净充放电: {net:+.2f} kWh")
+
+    # ── ③ 总结（第三条输出）──────────────────────────────
+    chg_ratio = (total_bess_chg / total_solar * 100) if total_solar > 0 else 0
+    dischg_ratio = (total_bess_dischg / total_bess_chg * 100) if total_bess_chg > 0 else 0
+    print(f"\n光伏自用率: {chg_ratio:.1f}% | 放电率: {dischg_ratio:.1f}%")
+    status = "✅" if net >= 0 else "⚠️"
+    print(f"电池净{'获利' if net >= 0 else '损耗'}: {abs(net):.2f} kWh {status}")
 
 
 def cmd_solar(site_id, days=7):
-    """查询站点近N天发电量（使用 /charts/month 接口）"""
+    """查询站点近N天发电量 — 输出顺序：图表 → 表格 → 总结"""
     now = datetime.now(timezone.utc)
     months = []
     for offset in range(2):
@@ -374,14 +440,20 @@ def cmd_solar(site_id, days=7):
 
     sorted_dates = sorted(daily_data.keys(), reverse=True)[:days]
     sorted_dates.reverse()
+    labels = [datetime.strptime(d, "%Y-%m-%d").strftime("%m-%d") for d in sorted_dates]
+    values = [daily_data[d] for d in sorted_dates]
 
+    # ── ① 图表（第一条输出）──────────────────────────────
+    chart_path = _gen_chart(labels, values, "Solar Generation (kWh)", "bar", f"solar_{site_id}_{days}days")
+    print(f"\n📊 图表路径: {chart_path}")
+
+    # ── ② 文字表格（第二条输出）──────────────────────────
     print(f"\n{'='*60}")
     print(f"  近 {days} 天光伏日发电量 — [{site_id}]")
     print(f"{'='*60}")
     total = 0
-    max_val = max(daily_data.values()) if daily_data else 1
-    for date_str in sorted_dates:
-        val = daily_data[date_str]
+    max_val = max(values) if values else 1
+    for date_str, val in zip(sorted_dates, values):
         total += val
         bar = "█" * int(val / max_val * 25)
         weekday = datetime.strptime(date_str, "%Y-%m-%d").strftime("%a")
@@ -389,66 +461,78 @@ def cmd_solar(site_id, days=7):
     print(f"  {'-'*40}")
     print(f"  合计: {total:.2f} kWh")
 
-    labels = [datetime.strptime(d, "%Y-%m-%d").strftime("%m-%d") for d in sorted_dates]
-    values = [daily_data[d] for d in sorted_dates]
-    _gen_chart(labels, values, "Solar Generation (kWh)", "bar", f"solar_{site_id}_{days}days")
-    print(f"\n  图表已生成!")
+    # ── ③ 总结信息（第三条输出）──────────────────────────
+    if values:
+        avg = total / len(values)
+        max_v = max(values)
+        min_v = min(values)
+        best_date = sorted_dates[values.index(max_v)]
+        worst_date = sorted_dates[values.index(min_v)]
+        print(f"\n日均发电: {avg:.2f} kWh，最高 {max_v:.2f} kWh（{best_date}），最低 {min_v:.2f} kWh（{worst_date}）")
+        print(f"总发电量: {total:.2f} kWh ✅")
 
 
 def cmd_report(site_id):
-    """综合分析报告"""
-    print(f"\n{'='*60}")
-    print(f"  ⚡ 能源站点综合分析报告  [{site_id}]")
-    print(f"{'='*60}")
+    """综合分析报告 — 输出顺序：图表 → 表格 → 总结"""
+    ts = int(datetime.now(timezone.utc).timestamp() * 1000)
 
-    data = api_get(f"/app/sites/{site_id}")
-    d = data.get("data", {})
+    # ── 并行拉取所有数据 ────────────────────────────────
+    site_data = api_get(f"/app/sites/{site_id}")
+    d = site_data.get("data", {})
     name = d.get("name", "-")
 
     bess_data = api_get(f"/app/sites/{site_id}/bess/today")
     bess = bess_data.get("data", {})
 
-    print(f"\n📍 基本信息: {name}")
-    print(f"   今日收益: ${d.get('todayRevenue', 0):.4f}")
-    print(f"   光伏功率: {fmt_power(d.get('solarTotalPower'))}")
-    print(f"   电池SOC: {d.get('totalSoc','-')}% | 电池功率: {fmt_power(d.get('bessTotalPower'))}")
-
-    chg = bess.get("chg", 0) / 1000
-    dischg = bess.get("dischg", 0) / 1000
-    print(f"\n🔋 今日BESS: 充电 {chg:.2f}kWh | 放电 {dischg:.2f}kWh | 净 {dischg-chg:.2f}kWh")
-
-    ts = int(datetime.now(timezone.utc).timestamp() * 1000)
     ew = api_get(f"/app/sites/{site_id}/earnings/week", {"timestamp": ts})
     ew_vals = [v or 0 for v in ew.get("data", {}).get("series", [{}])[0].get("value", [])]
+    ew_marks = ew.get("data", {}).get("marks", [])
+    ew_labels = [datetime.fromtimestamp(m / 1000).strftime("%m-%d") for m in ew_marks]
     ew_total = sum(ew_vals)
-    print(f"\n💰 周收益: AU${ew_total:.2f}")
 
     ey = api_get(f"/app/sites/{site_id}/earnings/year", {"timestamp": ts})
     ey_vals = [v or 0 for v in ey.get("data", {}).get("series", [{}])[0].get("value", [])]
-    ey_total = sum(ey_vals)
-    print(f"💰 年收益: AU${ey_total:.2f}")
-
-    print(f"\n{'='*60}")
-    print(f" 报告生成时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-    print(f"{'='*60}")
-
-    ew_marks = ew.get("data", {}).get("marks", [])
-    ew_labels = [datetime.fromtimestamp(m / 1000).strftime("%m-%d") for m in ew_marks]
-    if ew_vals:
-        _gen_chart(ew_labels, ew_vals, "周收益(AU$)", "bar", f"report_week_{site_id}")
-
     ey_marks = ey.get("data", {}).get("marks", [])
     ey_labels = [datetime.fromtimestamp(m / 1000).strftime("%Y-%m") for m in ey_marks]
-    if ey_vals:
-        _gen_chart(ey_labels, ey_vals, "月收益(AU$)", "bar", f"report_year_{site_id}")
+    ey_total = sum(ey_vals)
 
-    print(f"\n📊 分析图表已生成！")
+    # ── ① 图表（第一条输出）──────────────────────────────
+    chart_week = _gen_chart(ew_labels, ew_vals, "周收益(AU$)", "bar", f"report_week_{site_id}") if ew_vals else None
+    chart_year = _gen_chart(ey_labels, ey_vals, "月收益(AU$)", "bar", f"report_year_{site_id}") if ey_vals else None
+    print(f"\n📊 图表路径: 周收益={chart_week} / 年收益={chart_year}")
+
+    # ── ② 文字表格（第二条输出）──────────────────────────
+    chg = bess.get("chg", 0) / 1000
+    dischg = bess.get("dischg", 0) / 1000
+    today_rev = d.get('todayRevenue', 0)
+    print(f"\n{'='*60}")
+    print(f"  ⚡ 能源站点综合分析报告  [{site_id}]  {name}")
+    print(f"{'='*60}")
+    print(f"\n📍 今日概况")
+    print(f"   收益: ${today_rev:.4f} | 光伏: {fmt_power(d.get('solarTotalPower'))} | SOC: {d.get('totalSoc','-')}%")
+    print(f"\n🔋 今日BESS: 充电 {chg:.2f}kWh | 放电 {dischg:.2f}kWh | 净 {dischg-chg:+.2f}kWh")
+    print(f"\n💰 周收益: AU${ew_total:.2f} | 年收益: AU${ey_total:.2f}")
+    print(f"\n{'='*60}")
+    print(f" 报告生成: {datetime.now().strftime('%Y-%m-%d %H:%M')}")
+
+    # ── ③ 总结（第三条输出）──────────────────────────────
+    ew_best = max(ew_vals) if ew_vals else 0
+    ew_worst = min(ew_vals) if ew_vals else 0
+    ey_best = max(ey_vals) if ey_vals else 0
+    ey_worst = min(ey_vals) if ey_vals else 0
+
+    print(f"\n📊 关键指标")
+    print(f"  周收益: AU${ew_total:.2f}（最高 ${ew_best:.2f}，最低 ${ew_worst:.2f}）")
+    print(f"  年收益: AU${ey_total:.2f}（最高月 ${ey_best:.2f}，最低月 ${ey_worst:.2f}）")
+    print(f"  今日BESS净: {'放电' if dischg > chg else '充电'} {abs(dischg-chg):.2f} kWh")
+    overall = "✅ 盈利状态" if ey_total > 0 else "⚠️ 亏损状态"
+    print(f"\n整体运营: {overall}")
 
 
 # ─── 图表生成 ────────────────────────────────────────────────
 
 def _gen_chart(labels, values, ylabel, kind, filename):
-    """生成单系列图表"""
+    """生成单系列图表，返回图表文件路径"""
     os.makedirs(OUTPUT_DIR, exist_ok=True)
     output = f"{OUTPUT_DIR}/{filename}.png"
 
@@ -460,7 +544,7 @@ def _gen_chart(labels, values, ylabel, kind, filename):
 
     if not valid_values:
         print(f"  (无有效数据，跳过图表)")
-        return
+        return None
 
     import matplotlib
     matplotlib.use('Agg')
@@ -490,22 +574,33 @@ def _gen_chart(labels, values, ylabel, kind, filename):
     plt.tight_layout()
     plt.savefig(output)
     plt.close()
-    print(f"  ✅ 图表已保存: {output}")
-    print(f"  🖼️ CHART_PATH={output}")
+    return output
 
 
 def _gen_bar_chart(labels, values, ylabel, filename):
-    _gen_chart(labels, values, ylabel, "bar", filename)
+    """生成单系列柱状图（兼容封装）"""
+    return _gen_chart(labels, values, ylabel, "bar", filename)
 
 
 def _gen_multi_bar(labels, series_dict, ylabel, filename):
-    """生成多系列柱状图"""
+    """生成多系列柱状图，返回图表文件路径"""
     os.makedirs(OUTPUT_DIR, exist_ok=True)
     output = f"{OUTPUT_DIR}/{filename}.png"
 
     import matplotlib
     matplotlib.use('Agg')
     import matplotlib.pyplot as plt
+
+    font_paths = [
+        '/usr/share/fonts/opentype/noto/NotoSerifCJK-Bold.ttc',
+        '/usr/share/fonts/truetype/wqy/wqy-microhei.ttc',
+        '/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc',
+    ]
+    for fp in font_paths:
+        if os.path.exists(fp):
+            plt.rcParams['font.sans-serif'] = [fp, 'WenQuanYi Micro Hei', 'DejaVu Sans']
+            break
+    plt.rcParams['axes.unicode_minus'] = False
 
     plt.figure(figsize=(12, 5))
     x = range(len(labels))
@@ -522,8 +617,7 @@ def _gen_multi_bar(labels, series_dict, ylabel, filename):
     plt.tight_layout()
     plt.savefig(output)
     plt.close()
-    print(f"  ✅ 图表已保存: {output}")
-    print(f"  🖼️ CHART_PATH={output}")
+    return output
 
 
 # ─── 主入口 ───────────────────────────────────────────────────
