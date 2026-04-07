@@ -3,11 +3,11 @@
 # sunergy-energy 技能安装脚本 v1.0.1
 # 适用系统: Linux / macOS / Windows (WSL)
 # 安装方式:
-#   bash <(curl -fsSL https://raw.githubusercontent.com/gauss1979/skills/v1.0.1/skills/mx-sky-energy/install.sh)
+#   bash <(curl -fsSL https://raw.githubusercontent.com/gauss1979/skills/v1.0.3/skills/mx-sky-energy/install.sh)
 #===============================================
 set -e
 
-VERSION="v1.0.1"
+VERSION="v1.0.3"
 SKILL_NAME="sunergy-energy"
 SKILL_DIR="$HOME/.openclaw/workspace/skills/${SKILL_NAME}"
 CRED_DIR="$HOME/.sunergy"
@@ -53,7 +53,7 @@ if [ -z "$INSTALLER_DIR" ]; then
     rm -f "$TAR_PATH"
 fi
 
-DIST_DIR="$INSTALLER_DIR/${DIST_LABEL}/skills/mx-sky-energy"
+DIST_DIR="$INSTALLER_DIR/${DIST_LABEL}/mx-sky-energy"
 
 # ---- 1. 检测 Python ----
 info "检测 Python 环境..."
