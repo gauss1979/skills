@@ -491,6 +491,7 @@ def _gen_chart(labels, values, ylabel, kind, filename):
     plt.savefig(output)
     plt.close()
     print(f"  ✅ 图表已保存: {output}")
+    print(f"  🖼️ CHART_PATH={output}")
 
 
 def _gen_bar_chart(labels, values, ylabel, filename):
@@ -522,6 +523,7 @@ def _gen_multi_bar(labels, series_dict, ylabel, filename):
     plt.savefig(output)
     plt.close()
     print(f"  ✅ 图表已保存: {output}")
+    print(f"  🖼️ CHART_PATH={output}")
 
 
 # ─── 主入口 ───────────────────────────────────────────────────
