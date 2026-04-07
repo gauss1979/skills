@@ -48,10 +48,10 @@ NEM_TZ = timezone(timedelta(hours=10))
 class TokenMissingError(Exception):
     """Token 未配置或已失效，提示用户输入。"""
     USER_MSG = (
-        "为了完成您的要求，我需要您提供 Amber Bearer Token，"
-        "谢谢您的配合。\n\n"
-        "您可以前往 https://www.amber.com.au/developers 获取 Token，"
-        "然后告诉我您的 Token（格式：psk_xxx），技能会自动保存。"
+        "❌ 认证信息未配置或无效，请提供 Amber Token。\n\n"
+        "请前往 https://www.amber.com.au/developers 登录获取 Token，"
+        "然后告诉我（格式：psk_xxx），技能会自动保存到 ~/.amber/token，"
+        "后续无需再输入。"
     )
 
 def get_token():
@@ -64,7 +64,7 @@ def get_token():
     return None
 
 def save_token(token):
-    """保存 Token 到文件。"""
+    """保存 Token 到 ~/.amber/token。"""
     os.makedirs(os.path.dirname(TOKEN_FILE), exist_ok=True)
     with open(TOKEN_FILE, 'w') as f:
         f.write(token.strip())
@@ -80,7 +80,7 @@ def test_token(token):
             return True, len(data) if isinstance(data, list) else 0
     except urllib.error.HTTPError as e:
         if e.code == 401:
-            return False, "Token 无效（401 Unauthorized），请检查 Token 是否正确"
+            return False, "Token 无效（401），请检查是否正确或前往 https://www.amber.com.au/developers 重新获取"
         return False, f"HTTP {e.code}: {e.read().decode()[:200]}"
     except Exception as e:
         return False, f"请求失败: {e}"
@@ -89,9 +89,10 @@ def api_get(path, params=None):
     token = get_token()
     if not token:
         raise TokenMissingError(
-            "❌ 未配置 Amber Token！\n"
-            "请提供你的 Amber Bearer Token，格式：psk_xxx\n"
-            "输入后技能会自动保存，下次无需再输入。"
+            "❌ 未配置 Amber Token！\n\n"
+            "请提供你的 Amber Bearer Token（格式：psk_xxx），"
+            "技能会自动保存到 ~/.amber/token，后续无需再输入。\n\n"
+            "获取地址：https://www.amber.com.au/developers"
         )
     url = f"{BASE_URL}{path}"
     if params:
@@ -104,10 +105,11 @@ def api_get(path, params=None):
     except urllib.error.HTTPError as e:
         if e.code == 401:
             raise TokenMissingError(
-                "❌ Token 已失效！\n"
-                "请提供新的 Amber Bearer Token，技能会自动更新保存。"
+                "❌ Token 已失效（401 Unauthorized）！\n\n"
+                "请提供新的 Amber Bearer Token，技能会自动更新保存。\n\n"
+                "获取地址：https://www.amber.com.au/developers"
             )
-        raise TokenMissingError(TokenMissingError.USER_MSG)
+        raise TokenMissingError(f"❌ 请求失败（HTTP {e.code}）")
     except Exception as e:
         raise TokenMissingError(f"❌ 请求失败: {e}")
 
@@ -602,29 +604,29 @@ def cmd_usage(site_id, start_date, end_date):
 
 # ============ 主入口 ============
 def cmd_login(token=None):
-    """测试并保存 Token，成功后写入文件。"""
+    """测试并保存 Token（成功后才写入文件）。"""
     if not token:
         current = get_token()
         if current:
-            print(f"当前 Token: {current[:10]}...{current[-4:]}")
+            print(f"已有 Token: {current[:10]}...{current[-4:]}")
             ok, msg = test_token(current)
             if ok:
-                print(f"✅ Token 有效，站点数: {msg}")
-                print(f"无需重新设置。")
+                print(f"✅ Token 有效，站点数: {msg}，无需重新设置。")
                 return
             else:
                 print(f"❌ 当前 Token 已失效: {msg}")
         print(TokenMissingError.USER_MSG)
+        return
 
-    print(f"正在测试 Token...")
+    print(f"正在验证 Token...")
     ok, msg = test_token(token)
     if ok:
         save_token(token)
-        print(f"✅ Token 有效（站点数: {msg}），已保存到 ~/.amber/token")
-        print(f"\n🎉 Token 配置成功！后续查询无需再输入 Token。")
+        print(f"✅ Token 验证成功（站点数: {msg}），已保存到 ~/.amber/token")
+        print(f"\n🎉 配置完成！后续查询无需再输入 Token。")
     else:
         print(f"❌ Token 无效: {msg}")
-        print(f"请检查 Token 是否正确，或前往 https://www.amber.com.au/developers 获取新 Token。")
+        print(f"请前往 https://www.amber.com.au/developers 重新获取。")
 
 
 def main():

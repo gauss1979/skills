@@ -160,8 +160,8 @@ amber.py report
 
 ## 注意事项
 
-- Token 向 Amber API 获取，官网：https://www.amber.com.au/developers
+- Token 认证信息仅存储在 `~/.amber/token`，**不写入记忆或技能文件**
+- 认证失败或缺失时，技能会显示友好提示并引导重新输入
 - `/usage` 接口日期格式为 **YYYY-MM-DD**（不是 ISO 8601）
 - 售电（feedIn）perKwh 在某些时段为**负数**，此时售电反而被收费
 - 预测价格仅供参考，实际以 ActualInterval 为准
-- 认证信息仅存储在 `~/.amber/` 目录，不写入记忆或技能文件
