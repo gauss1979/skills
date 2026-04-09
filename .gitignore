@@ -1,0 +1,23 @@
+# Python
+*.pyc
+__pycache__/
+*.pyo
+*.pyd
+.Python
+
+# Skill packaging output
+*.skill
+
+# Byte-compiled / optimized / DLL files
+*.egg-info/
+dist/
+build/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# OpenClaw
+.agents/
+.openclaw/
+.clawhub/
