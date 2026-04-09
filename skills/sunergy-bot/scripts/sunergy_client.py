@@ -42,6 +42,7 @@ class SunergyClient:
             "Accept-Encoding": "gzip, deflate",
             "tenantId": TENANT_ID,
             "timeZone": TIMEZONE,
+            "Authorization": "Basic c3VuOmVYUmxCeWVmRDh2MTJiTS9rbEdLdXc9PQ==",
             "Connection": "keep-alive",
             "Referer": "http://web.nsw.aiminis.com/",
             "Pragma": "no-cache",
@@ -82,7 +83,6 @@ class SunergyClient:
     def login_phone(self, phone: str, password: str) -> Dict[str, Any]:
         """手机号密码登录"""
         h = self._headers.copy()
-        h.pop("Authorization", None)
         body = {"phone": phone, "password": password}
         data = json.dumps(body).encode("utf-8")
         req = urllib.request.Request(BASE_URL + "/auth/getToken/byPhonePassword", data=data, headers=h, method="POST")
@@ -97,7 +97,6 @@ class SunergyClient:
     def login_email(self, email: str, password: str) -> Dict[str, Any]:
         """邮箱密码登录"""
         h = self._headers.copy()
-        h.pop("Authorization", None)
         body = {"email": email, "password": password}
         data = json.dumps(body).encode("utf-8")
         req = urllib.request.Request(BASE_URL + "/auth/getToken/byEmailPassword", data=data, headers=h, method="POST")
