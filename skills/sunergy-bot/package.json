@@ -1,0 +1,12 @@
+{
+  "name": "sunergy-bot",
+  "version": "1.0.0",
+  "description": "Sunergy (mx-sky) 能源管理系统 API 查询与图表生成技能。支持站点管理、实时监控、功率图表、BESS状态、收益分析",
+  "author": "Gauss",
+  "license": "MIT",
+  "keywords": ["sunergy", "mx-sky", "energy", "solar", "bess", "power", "charts"],
+  "scripts": {
+    "test": "python3 scripts/report_all.py"
+  },
+  "dependencies": {}
+}
