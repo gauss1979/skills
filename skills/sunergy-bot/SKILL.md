@@ -16,7 +16,7 @@ description: Sunergy (mx-sky) 能源管理系统 API 查询与图表生成技能
 | **Base URL** | `http://web.nsw.aiminis.com/api` |
 | **TenantId** | `3` |
 | **时区** | `Asia/Shanghai` |
-| **Token 文件** | `{agentPath}/.sunergy-bot/token` |
+| **Token 文件** | 自动存至当前 agent workspace 隐藏目录 |
 
 ---
 

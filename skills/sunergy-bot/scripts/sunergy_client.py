@@ -13,7 +13,7 @@ from datetime import datetime, timezone, timedelta
 from typing import Optional, Dict, Any, List
 
 # ============ 配置 ============
-TOKEN_FILE = Path(__file__).parent.parent / ".sunergy-bot" / "token"
+TOKEN_FILE = Path(os.environ.get("PWD", "/root/.openclaw/workspace")) / ".sunergy-bot" / "token"
 BASE_URL = "http://web.nsw.aiminis.com/api"
 TENANT_ID = "3"
 TIMEZONE = "Asia/Shanghai"
@@ -87,6 +87,8 @@ class SunergyClient:
         data = json.dumps(body).encode("utf-8")
         req = urllib.request.Request(BASE_URL + "/auth/getToken/byPhonePassword", data=data, headers=h, method="POST")
         req.add_header("Content-Type", "application/json")
+        # 显式添加 Basic Auth，解决 HTTP 500
+        req.add_header("Authorization", "Basic c3VuOmVYUmxCeWVmRDh2MTJiTS9rbEdLdXc9PQ==")
         with urllib.request.urlopen(req, timeout=30) as resp:
             result = json.loads(resp.read().decode("utf-8"))
         if result.get("success") and result.get("data", {}).get("access_token"):
@@ -101,6 +103,8 @@ class SunergyClient:
         data = json.dumps(body).encode("utf-8")
         req = urllib.request.Request(BASE_URL + "/auth/getToken/byEmailPassword", data=data, headers=h, method="POST")
         req.add_header("Content-Type", "application/json")
+        # 显式添加 Basic Auth，解决 HTTP 500
+        req.add_header("Authorization", "Basic c3VuOmVYUmxCeWVmRDh2MTJiTS9rbEdLdXc9PQ==")
         with urllib.request.urlopen(req, timeout=30) as resp:
             result = json.loads(resp.read().decode("utf-8"))
         if result.get("success") and result.get("data", {}).get("access_token"):
