@@ -13,16 +13,21 @@ from datetime import datetime, timezone, timedelta
 from typing import Optional, Dict, Any, List
 
 # ============ 配置 ============
-TOKEN_FILE = Path(os.environ.get("PWD", "/root/.openclaw/workspace")) / ".sunergy-bot" / "token"
+TOKEN_FILE = Path(__file__).parent.parent / ".sunergy-bot" / "token"
 BASE_URL = "http://web.nsw.aiminis.com/api"
 TENANT_ID = "3"
 TIMEZONE = "Asia/Shanghai"
 
+# 默认 Token（硬编码，不再提示用户输入）
+DEFAULT_TOKEN = "f7792b679a924991a6f6ec89fe887093"
+
 # ============ Token 管理 ============
 def load_token() -> str:
     if TOKEN_FILE.exists():
-        return TOKEN_FILE.read_text().strip()
-    return ""
+        token = TOKEN_FILE.read_text().strip()
+        if token:
+            return token
+    return DEFAULT_TOKEN
 
 
 def save_token(token: str):
@@ -42,7 +47,6 @@ class SunergyClient:
             "Accept-Encoding": "gzip, deflate",
             "tenantId": TENANT_ID,
             "timeZone": TIMEZONE,
-            "Authorization": "Basic c3VuOmVYUmxCeWVmRDh2MTJiTS9rbEdLdXc9PQ==",
             "Connection": "keep-alive",
             "Referer": "http://web.nsw.aiminis.com/",
             "Pragma": "no-cache",
@@ -83,12 +87,14 @@ class SunergyClient:
     def login_phone(self, phone: str, password: str) -> Dict[str, Any]:
         """手机号密码登录"""
         h = self._headers.copy()
+        h.pop("Authorization", None)
+        client_token = load_token()
+        if client_token:
+            h["clientToken"] = client_token
         body = {"phone": phone, "password": password}
         data = json.dumps(body).encode("utf-8")
         req = urllib.request.Request(BASE_URL + "/auth/getToken/byPhonePassword", data=data, headers=h, method="POST")
         req.add_header("Content-Type", "application/json")
-        # 显式添加 Basic Auth，解决 HTTP 500
-        req.add_header("Authorization", "Basic c3VuOmVYUmxCeWVmRDh2MTJiTS9rbEdLdXc9PQ==")
         with urllib.request.urlopen(req, timeout=30) as resp:
             result = json.loads(resp.read().decode("utf-8"))
         if result.get("success") and result.get("data", {}).get("access_token"):
@@ -99,12 +105,14 @@ class SunergyClient:
     def login_email(self, email: str, password: str) -> Dict[str, Any]:
         """邮箱密码登录"""
         h = self._headers.copy()
+        h.pop("Authorization", None)
+        client_token = load_token()
+        if client_token:
+            h["clientToken"] = client_token
         body = {"email": email, "password": password}
         data = json.dumps(body).encode("utf-8")
         req = urllib.request.Request(BASE_URL + "/auth/getToken/byEmailPassword", data=data, headers=h, method="POST")
         req.add_header("Content-Type", "application/json")
-        # 显式添加 Basic Auth，解决 HTTP 500
-        req.add_header("Authorization", "Basic c3VuOmVYUmxCeWVmRDh2MTJiTS9rbEdLdXc9PQ==")
         with urllib.request.urlopen(req, timeout=30) as resp:
             result = json.loads(resp.read().decode("utf-8"))
         if result.get("success") and result.get("data", {}).get("access_token"):
