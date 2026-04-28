@@ -157,8 +157,28 @@ description: Sunergy (mx-sky) 能源管理系统 API 查询与图表生成技能
 ### 5.3 输出目录
 图表统一输出到 `/tmp/sunergy_charts/`，文件名格式：
 ```
-{site_name}_{chart_type}_{date}.png
+{site_id}_{chart_type}_{date}.png
 ```
+
+### 5.4 图表回复规范（重要）
+
+**图表必须作为独立图片消息发送，不嵌入 Markdown。**
+
+所有图表生成后，回复分两条：
+1. **文字回复**：发送纯文字数据摘要，不含图片
+2. **图片消息**：通过 `message(channel=feishu, filePath="/tmp/sunergy_charts/xxx.png", message="图表说明")` 发送图片，作为独立消息
+
+这样兼容不支持 Markdown 内嵌图片的终端。
+
+**示例回复格式：**
+```
+James 电站 2026-04-28 日功率曲线：
+  峰值功率：12.5 kW（光伏）
+  充电量：45.3 kWh
+  SOC范围：38% → 82%
+  收益：$8.23
+```
+（图片消息单独发送，filePath 指向对应 PNG）
 
 ---
 
